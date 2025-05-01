@@ -149,3 +149,8 @@ distclean: clean
 docs:
 	( cd Doc && $(MAKE) )
 
+dl_simple:
+	( cd build && cmake $(CMAKE_OPTIONS) -DCHOLMOD_USE_CUDA=1 -DSUITESPARSE_DEMOS=ON .. > /dev/null )
+	( cd build && cmake --build . --target cholmod_dl_simple --config Release -j${JOBS} )
+
+

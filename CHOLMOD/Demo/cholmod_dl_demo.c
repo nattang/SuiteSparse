@@ -91,6 +91,7 @@ int main (int argc, char **argv)
     int trial, method, L_is_super ;
     int ver [3] ;
     int prefer_zomplex, nmethods ;
+    // nmethods: ordering methods (eg minimum degree, constrained minimum degree)
 
     ts[0] = 0.;
     ts[1] = 0.;
@@ -227,7 +228,8 @@ int main (int argc, char **argv)
 
     n = A->nrow ;
     xn = n ;
-    B = cholmod_l_zeros (n, 1, xdtype, cm) ;
+    B = cholmod_l_zeros (n, 1, xdtype, cm);
+    printf("pointer to B: %p", (void *)B->x);
     Bx = B->x ;
     Bz = B->z ;
 

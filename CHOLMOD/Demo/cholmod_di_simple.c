@@ -25,6 +25,7 @@ int main (void)
     cholmod_sparse *A ;
     cholmod_dense *x, *b, *r ;
     cholmod_factor *L ;
+    int factorization ;
     double one [2] = {1,0}, m1 [2] = {-1,0} ;       // basic scalars
     cholmod_common c ;
     cholmod_start (&c) ;                            // start CHOLMOD

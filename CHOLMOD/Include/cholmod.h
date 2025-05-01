@@ -351,14 +351,14 @@ int cholmod_l_version (int version [3]) ;
 //      #define NGPL
 
 // These flags are configured by cmake when CHOLMOD is compiled:
-#define CHOLMOD_HAS_GPL
+/* #undef CHOLMOD_HAS_GPL */
 #define CHOLMOD_HAS_CHECK
 #define CHOLMOD_HAS_CHOLESKY
 #define CHOLMOD_HAS_CAMD
 #define CHOLMOD_HAS_PARTITION
-#define CHOLMOD_HAS_MATRIXOPS
-#define CHOLMOD_HAS_MODIFY
-#define CHOLMOD_HAS_SUPERNODAL
+/* #undef CHOLMOD_HAS_MATRIXOPS */
+/* #undef CHOLMOD_HAS_MODIFY */
+/* #undef CHOLMOD_HAS_SUPERNODAL */
 /* #undef CHOLMOD_HAS_CUDA */
 #define CHOLMOD_HAS_OPENMP
 

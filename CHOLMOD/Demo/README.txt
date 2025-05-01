@@ -27,9 +27,13 @@ To compile and run the demos on the CPU, do "make demos" in the parent
 directory (SuiteSparse/CHOLMOD).
 
 To run the demos on the GPU, you must first download the ND/ND6k matrix
-from the SuiteSparse Matrix Collection, hosted at https://sparse.tamu.edu
+from the SuiteSparse Matrix Collection, hosted at https://sparse.tamu.edu (outdated, go to https://suitesparse-collection-website.herokuapp.com/)
 
 Unpack the nd6k.mtx to your home directory.
 Then do "./gpu.sh" in this directory.  If you want to put the nd6k.mtx
 file somewhere else, then simply edit the gpu.sh file.
+
+## Instructions for passing in custom input matrices and right hand sides on the GPU
+1. Edit cholmod_gpu.sh with file locations for the matrices
+2. ./cholmod_gpu.sh
 

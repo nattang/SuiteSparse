@@ -23,6 +23,7 @@
 #include <string.h>
 #include <math.h>
 #include "cholmod.h"
+// #include "cuda_runtime.h"
 
 /* parse parameters */
 // copied from AMGX
@@ -52,6 +53,86 @@ int findParamIndex(char **argv, int argc, const char *parm)
     return -1;
 }
 
+void print_cholmod_dense_values(cholmod_dense *A)
+{
+    if (A == NULL || A->x == NULL) {
+        printf("Matrix is empty or uninitialized.\n");
+        return;
+    }
+
+    size_t nrow = A->nrow;
+    size_t ncol = A->ncol;
+    size_t ld = A->d;
+
+    double *x = (double *) A->x;
+    for (size_t i = 0; i < nrow; i++) {
+        for (size_t j = 0; j < ncol; j++) {
+            printf("%10.6f ", x[i + j * ld]); // column-major access
+        }
+        printf("\n");
+    }
+    
+}
+
+void print_cholmod_sparse_values(cholmod_sparse *A)
+{
+    if (A == NULL) {
+        printf("Matrix is NULL.\n");
+        return;
+    }
+
+    size_t ncol = A->ncol;
+    size_t nrow = A->nrow;
+    int is_real = (A->xtype == CHOLMOD_REAL);
+    int is_double = (A->dtype == CHOLMOD_DOUBLE);
+    int is_packed = A->packed;
+
+    printf("cholmod_sparse: %zu x %zu\n", nrow, ncol);
+    printf("xtype: %d\n", A->xtype);
+    printf("dtype: %d\n", A->dtype);
+
+    for (size_t j = 0; j < ncol; j++) {
+        size_t col_start, col_end;
+
+        if (A->itype == CHOLMOD_INT) {
+            int32_t *p = (int32_t *) A->p;
+            int32_t *i = (int32_t *) A->i;
+            col_start = p[j];
+            col_end = is_packed ? p[j+1] : p[j] + ((int32_t *)A->nz)[j];
+
+            for (size_t k = col_start; k < col_end; k++) {
+                int32_t row = i[k];
+                if (is_double) {
+                    double *x = (double *) A->x;
+                    printf("(%d, %zu): %.6f\n", row, j, x[k]);
+                } else {
+                    float *x = (float *) A->x;
+                    printf("(%d, %zu): %.6f\n", row, j, x[k]);
+                }
+            }
+        } else if (A->itype == CHOLMOD_LONG) {
+            int64_t *p = (int64_t *) A->p;
+            int64_t *i = (int64_t *) A->i;
+            col_start = p[j];
+            col_end = is_packed ? p[j+1] : p[j] + ((int64_t *)A->nz)[j];
+
+            for (size_t k = col_start; k < col_end; k++) {
+                int64_t row = i[k];
+                if (is_double) {
+                    double *x = (double *) A->x;
+                    printf("(%ld, %zu): %.6f\n", row, j, x[k]);
+                } else {
+                    float *x = (float *) A->x;
+                    printf("(%ld, %zu): %.6f\n", row, j, x[k]);
+                }
+            }
+        } else {
+            printf("Unsupported itype: %d\n", A->itype);
+            return;
+        }
+    }
+}
+
 void compute_error(cholmod_dense *X, cholmod_dense *expected)
 {
     if (X->nrow != expected->nrow || X->ncol != expected->ncol) {
@@ -59,18 +140,31 @@ void compute_error(cholmod_dense *X, cholmod_dense *expected)
         exit(EXIT_FAILURE);
     }
 
-    size_t n = X->nrow * X->ncol;
+    size_t nrow = X->nrow;
+    size_t ncol = X->ncol;
+    size_t ld = X->d;
     double error = 0.0;
 
     double *x_data = (double *)(X->x);
     double *expected_data = (double *)(expected->x);
 
-    for (size_t i = 0; i < n; i++) {
-        error += fabs(x_data[i] - expected_data[i]);
+    printf("X:\n");
+    print_cholmod_dense_values(X);
+
+    printf("Expected:\n");
+    print_cholmod_dense_values(expected);
+
+    for (size_t j = 0; j < ncol; j++) {
+        for (size_t i = 0; i < nrow; i++) {
+            size_t idx = i + j * ld; 
+            error += fabs(x_data[idx] - expected_data[idx]);
+        }
     }
 
     printf("Total error between RXMesh and CHOLMOD: %e\n", error);
 }
+
+
 
 int main(int argc, char **argv)
 {
@@ -97,9 +191,12 @@ int main(int argc, char **argv)
         }
 
         A = cholmod_l_read_sparse2(A_file, dtype, &c);
+        fclose(A_file);
+        // print_cholmod_sparse_values(A);
         c.precise = true;
         c.print = (A->nrow > 5) ? 3 : 5;
         cholmod_l_print_sparse(A, "A", &c); // print the matrix
+
     }
     else
     {
@@ -115,6 +212,10 @@ int main(int argc, char **argv)
         return (0);
     }
 
+    // TODO: populate B with all zeros, populate B with values
+    B = cholmod_l_allocate_dense(A->nrow, 3, A->nrow, A->xtype + dtype, &c); 
+    // cudaPointerAttributes attributes;
+    // cudaPointerGetAttributes(&attributes, (void *)B->x);
     if ((pidx = findParamIndex(argv, argc, "-B")) != -1)
     {
         FILE *B_file = fopen(argv[pidx + 1], "r");
@@ -124,13 +225,32 @@ int main(int argc, char **argv)
             exit(1);
         }
 
+        printf("populating B with values from file\n");
         B = cholmod_l_read_dense2(B_file, dtype, &c);
+        fclose(B_file);
+
+        // write to file
+        // FILE *f = fopen("./B.mtx", "w");
+        // if (f == NULL)
+        // {
+        //     perror("Error opening B file for writing\n");
+        //     exit(1);
+        // }
+        // cholmod_l_write_dense(f, B, NULL, &c);
+        // fclose(f);
+        // printf("wrote B to file\n");
+        // print_cholmod_dense_values(B);
+        // B = cholmod_l_zeros (A->nrow, 1, A->xtype + dtype, &c);
+        // printf("pointer to B: %p, %p\n", (void *)B->x, &B);
+        
+        //printf("first item of B->x: %f\n", float(B->x[0]));
     }
     else
     {
         B = cholmod_l_ones(A->nrow, 1, A->xtype + dtype, &c); // b = ones(n,1)
     }
 
+    
     if ((pidx = findParamIndex(argv, argc, "-EX")) != -1)
     {
         FILE *EX_file = fopen(argv[pidx + 1], "r");
@@ -141,7 +261,21 @@ int main(int argc, char **argv)
         }
 
         expected = cholmod_l_read_dense2(EX_file, dtype, &c);
+        fclose(EX_file);
+
+        // FILE *f = fopen("./Expected.mtx", "w");
+        // if (f == NULL)
+        // {
+        //     perror("Error opening B file for writing\n");
+        //     exit(1);
+        // }
+        // cholmod_l_write_dense(f, expected, NULL, &c);
+        // fclose(f);
+        // printf("wrote expected to file\n");
+
     }
+
+    X = cholmod_l_allocate_dense(A->nrow, 3, A->nrow, A->xtype + dtype, &c);
 
     double t1 = SUITESPARSE_TIME;
     L = cholmod_l_analyze(A, &c); // analyze
@@ -150,8 +284,10 @@ int main(int argc, char **argv)
     cholmod_l_factorize(A, L, &c); // factorize
     t2 = SUITESPARSE_TIME - t2;
     double t3 = SUITESPARSE_TIME;
+
     X = cholmod_l_solve(CHOLMOD_A, L, B, &c); // solve Ax=b
     t3 = SUITESPARSE_TIME - t3;
+    
     printf("analyze   time: %10.3f sec\n", t1);
     printf("factorize time: %10.3f sec\n", t2);
     printf("solve     time: %10.3f sec\n", t3);
@@ -186,6 +322,7 @@ int main(int argc, char **argv)
     cholmod_l_free_dense(&r, &c);
     cholmod_l_free_dense(&X, &c);
     cholmod_l_free_dense(&B, &c);
+    cholmod_l_free_dense(&expected, &c);
     cholmod_l_print_common("common", &c);
     printf("retrieving GPU stats\n");
     cholmod_l_gpu_stats(&c);
