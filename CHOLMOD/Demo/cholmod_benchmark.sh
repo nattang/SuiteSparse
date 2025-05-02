@@ -17,7 +17,7 @@ for dir in "$OUTPUT_DIR"*/; do
     echo "current directory: $dir"
 
 
-    A_MATRIX="$dir/A.mtx"
+    A_MATRIX="$dir/A_sym.mtx"
     B_MATRIX="$dir/B.mtx"
     X_MATRIX="$dir/X.mtx"
 
