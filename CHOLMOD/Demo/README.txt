@@ -34,6 +34,16 @@ Then do "./gpu.sh" in this directory.  If you want to put the nd6k.mtx
 file somewhere else, then simply edit the gpu.sh file.
 
 ## Instructions for passing in custom input matrices and right hand sides on the GPU
-1. Edit cholmod_gpu.sh with file locations for the matrices
-2. ./cholmod_gpu.sh
 
+Instructions for comparison with RXMesh:
+1. To solve the linear system of AX=B, 
+2. Either run `/.cholmod_gpu.sh` by editing the input paths or
+2. `make dl_simple`
+3. CHOLMOD_USE_GPU=1 CHOLMOD_MATRIXOPS=ON \../build/cholmod_dl_simple \
+ -A PATH_TO_A.mtx \
+ -B PATH_TO_B.mtx \
+ -EX PATH_TO_X.mtx
+
+Note that if -B, -EX are not set, they default to (n, 1) matrix of ones and zeros respectively.
+
+To record the outputs of multiple objects, specify an output directory in `cholmod_benchmark.sh`, and use python to run `read_cholmod_output.py`
